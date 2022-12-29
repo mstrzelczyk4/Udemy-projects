@@ -1,0 +1,150 @@
+from traceback import print_stack
+from allure_commons.types import AttachmentType
+from selenium.common.exceptions import ElementNotVisibleException, NoSuchElementException
+from selenium.webdriver import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as ec
+
+import utilities.CustomLogger as Cl
+import allure
+
+
+class BaseClass:
+    log = Cl.custom_logger()
+
+    def __init__(self, driver):
+        self.driver = driver
+
+    def launch_web_page(self, url, title):
+        try:
+            self.driver.get(url)
+            assert title in self.driver.title
+            self.log.info("Web Page Launched with URL : " + url)
+        except:
+            self.log.info("Web Page not Launched with URL : " + url)
+
+    def get_locator_type(self, locator_type):
+        locator_type = locator_type.lower()
+        if locator_type == "id":
+            return By.ID
+        elif locator_type == "name":
+            return By.NAME
+        elif locator_type == "class":
+            return By.CLASS_NAME
+        elif locator_type == "xpath":
+            return By.XPATH
+        elif locator_type == "css":
+            return By.CSS_SELECTOR
+        elif locator_type == "tag":
+            return By.TAG_NAME
+        elif locator_type == "link":
+            return By.LINK_TEXT
+        elif locator_type == "plink":
+            return By.PARTIAL_LINK_TEXT
+        else:
+            self.log.error("Locator Type : " + locator_type + " entered is not found")
+        return False
+
+    def get_web_element(self, locator_value, locator_type="id"):
+        web_element = None
+        try:
+            locator_type = locator_type.lower()
+            locator_by_type = self.get_locator_type(locator_type)
+            web_element = self.driver.find_element(locator_by_type, locator_value)
+            self.log.info("WebElement found with locator value " + locator_value + " using locatorType " + locator_by_type)
+        except:
+            self.log.error(
+                "WebElement not found with locator value " + locator_value + " using locatorType " + locator_type)
+            print_stack()
+        return web_element
+
+    def wait_for_element(self, locator_value, locator_type="id"):
+        web_element = None
+        try:
+            locator_type = locator_type.lower()
+            locator_by_type = self.get_locator_type(locator_type)
+            wait = WebDriverWait(self.driver, 25, poll_frequency=1,
+                                 ignored_exceptions=[ElementNotVisibleException, NoSuchElementException])
+            web_element = wait.until(ec.presence_of_element_located((locator_by_type, locator_value)))
+            self.log.info("WebElement found with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "WebElement not found with locator value " + locator_value + " using locatorType " + locator_type)
+            print_stack()
+            self.take_screenshot(locator_type)
+            assert False
+        return web_element
+
+    def click_on_element(self, locator_value, locator_type="id"):
+        try:
+            locator_type = locator_type.lower()
+            web_element = self.wait_for_element(locator_value, locator_type)
+            web_element.click()
+            self.log.info(
+                "Clicked on WebElement with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "Unable to Click on WebElement with locator value " + locator_value + " using locatorType " + locator_type)
+            print_stack()
+            assert False
+
+    def send_text(self, text, locator_value, locator_type="id"):
+        try:
+            locator_type = locator_type.lower()
+            web_element = self.wait_for_element(locator_value, locator_type)
+            web_element.send_keys(text)
+            self.log.info(
+                "Sent the text " + text + " in WebElement with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "Unable to Sent the text " + text + " in WebElement with locator value " + locator_value + "using locatorType " + locator_type)
+            print_stack()
+            self.take_screenshot(locator_type)
+            assert False
+
+    def get_text(self, locator_value, locator_type="id"):
+        element_text = None
+        try:
+            locator_type = locator_type.lower()
+            web_element = self.wait_for_element(locator_value, locator_type)
+            element_text = web_element.text
+            self.log.info(
+                "Got the text " + element_text + " from WebElement with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "Unable to get the text " + element_text + " from WebElement with locator value " + locator_value + "using locatorType " + locator_type)
+            print_stack()
+
+        return element_text
+
+    def is_element_displayed(self, locator_value, locator_type="id"):
+        element_displayed = None
+        try:
+            locator_type = locator_type.lower()
+            web_element = self.wait_for_element(locator_value, locator_type)
+            element_displayed = web_element.is_displayed()
+            self.log.info(
+                "WebElement is Displayed on web page with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "WebElement is not Displayed on web page with locator value " + locator_value + " using locatorType " + locator_type)
+            print_stack()
+
+        return element_displayed
+
+    def scroll_to(self, locator_value, locator_type="id"):
+        actions = ActionChains(self.driver)
+        try:
+            locator_type = locator_type.lower()
+            web_element = self.wait_for_element(locator_value, locator_type)
+            actions.move_to_element(web_element).perform()
+            self.log.info(
+                "Scrolled to WebElement with locator value " + locator_value + " using locatorType " + locator_type)
+        except:
+            self.log.error(
+                "Unable to scroll to WebElement with locator value " + locator_value + "using locatorType " + locator_type)
+            print_stack()
+
+    def take_screenshot(self, text):
+        allure.attach(self.driver.get_screenshot_as_png(), name=text, attachment_type=AttachmentType.PNG)
